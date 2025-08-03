@@ -6,6 +6,8 @@ function handleNewGuild(guild) {
   if (!fs.existsSync(filePath)) {
     const initialData = {
       guildName: guild.name,
+      premiumRoleId: null,
+      staffRoleId: null,
       accounts: []
     };
     fs.writeFileSync(filePath, JSON.stringify(initialData, null, 2));
