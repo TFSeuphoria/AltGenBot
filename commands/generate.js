@@ -2,6 +2,9 @@ const { SlashCommandBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
+// In-memory cooldown map: { userId: timestampOfNextAllowedUsage }
+const cooldowns = new Map();
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('generate')
@@ -17,18 +20,17 @@ module.exports = {
     const focusedValue = interaction.options.getFocused();
     const filePath = path.join(__dirname, '..', 'data', `${interaction.guild.id}.json`);
 
-    if (!fs.existsSync(filePath)) {
-      return interaction.respond([]);
-    }
+    if (!fs.existsSync(filePath)) return interaction.respond([]);
 
     const data = JSON.parse(fs.readFileSync(filePath));
     const services = data.services || [];
 
-    const filtered = services.filter(service => service.toLowerCase().includes(focusedValue.toLowerCase()));
-
+    const filtered = services.filter(service =>
+      service.toLowerCase().includes(focusedValue.toLowerCase())
+    );
     const choices = filtered.map(service => ({ name: service, value: service }));
 
-    await interaction.respond(choices.slice(0, 25)); // max 25 choices
+    await interaction.respond(choices.slice(0, 25));
   },
 
   async execute(interaction) {
@@ -44,6 +46,24 @@ module.exports = {
       return interaction.reply({ content: `❌ Service "${service}" does not exist.`, ephemeral: true });
     }
 
+    // Determine if user has premium role
+    const premiumRoleId = data.premiumRoleId;
+    const hasPremium = premiumRoleId ? interaction.member.roles.cache.has(premiumRoleId) : false;
+
+    const cooldownMinutes = hasPremium ? data.premiumCooldownMinutes || 5 : data.regularCooldownMinutes || 10;
+    const cooldownMs = cooldownMinutes * 60 * 1000;
+
+    const now = Date.now();
+    const userId = interaction.user.id;
+
+    if (cooldowns.has(userId)) {
+      const expireTime = cooldowns.get(userId);
+      if (now < expireTime) {
+        const timeLeft = Math.ceil((expireTime - now) / 1000);
+        return interaction.reply({ content: `⏳ You must wait ${timeLeft} second(s) before generating again.`, ephemeral: true });
+      }
+    }
+
     if (!data.accounts || data.accounts.length === 0) {
       return interaction.reply({ content: '⚠️ No accounts available.', ephemeral: true });
     }
@@ -55,8 +75,12 @@ module.exports = {
 
     const account = data.accounts[index].account;
 
+    // Remove the account to avoid duplicates
     data.accounts.splice(index, 1);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+    // Set cooldown for user
+    cooldowns.set(userId, now + cooldownMs);
 
     try {
       await interaction.user.send(`Here is your **${service}** account:\n\`\`\`${account}\`\`\``);
