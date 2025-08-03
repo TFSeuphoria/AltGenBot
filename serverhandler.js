@@ -9,7 +9,9 @@ function handleNewGuild(guild) {
       premiumRoleId: null,
       staffRoleId: null,
       accounts: [],
-      services: []
+      services: [],
+      regularCooldownMinutes: 10,
+      premiumCooldownMinutes: 5
     };
     fs.writeFileSync(filePath, JSON.stringify(initialData, null, 2));
     console.log(`Created data file for ${guild.name} (${guild.id})`);
