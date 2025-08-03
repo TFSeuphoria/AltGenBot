@@ -8,7 +8,8 @@ function handleNewGuild(guild) {
       guildName: guild.name,
       premiumRoleId: null,
       staffRoleId: null,
-      accounts: []
+      accounts: [],
+      services: []
     };
     fs.writeFileSync(filePath, JSON.stringify(initialData, null, 2));
     console.log(`Created data file for ${guild.name} (${guild.id})`);
