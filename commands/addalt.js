@@ -8,8 +8,9 @@ module.exports = {
     .setDescription('Add an alt account under a service')
     .addStringOption(option =>
       option.setName('service')
-        .setDescription('The service this account belongs to')
+        .setDescription('Choose a service')
         .setRequired(true)
+        .setAutocomplete(true)
     )
     .addStringOption(option =>
       option.setName('username')
@@ -21,6 +22,23 @@ module.exports = {
         .setDescription('Password of the alt account')
         .setRequired(true)
     ),
+
+  async autocomplete(interaction) {
+    const focusedValue = interaction.options.getFocused();
+    const filePath = path.join(__dirname, '..', 'data', `${interaction.guild.id}.json`);
+
+    if (!fs.existsSync(filePath)) {
+      return interaction.respond([]);
+    }
+
+    const data = JSON.parse(fs.readFileSync(filePath));
+    const services = data.services || [];
+
+    const filtered = services.filter(service => service.toLowerCase().includes(focusedValue.toLowerCase()));
+    const choices = filtered.map(service => ({ name: service, value: service }));
+
+    await interaction.respond(choices.slice(0, 25));
+  },
 
   async execute(interaction) {
     const filePath = path.join(__dirname, '..', 'data', `${interaction.guild.id}.json`);
